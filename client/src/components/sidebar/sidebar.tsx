@@ -1,92 +1,89 @@
-import React, { FC, ReactElement, useRef, useEffect, useState } from "react";
-import { ImFolderUpload } from "react-icons/im";
-import { FaTemperatureHigh } from "react-icons/fa";
-import logo from "../images/weather_logo.svg";
+import React, { FC, ReactElement, SyntheticEvent, useContext, useRef, useState } from 'react';
+import { ImFolderUpload, ImCancelCircle } from 'react-icons/im';
+import { FaMapMarker, FaMapMarkerAlt, FaTemperatureHigh } from 'react-icons/fa';
+import { makeRequest, updateFile } from '../../utils/data-utils';
+import logo from '../images/weather_logo.svg';
+import { MdLocationOn, MdOutlineLocationOn } from 'react-icons/md';
+import { TempContext } from '../../utils/TempContext';
+import { MapPoint } from '../../..';
 
 export const Sidebar: FC = (): ReactElement => {
-  const inputEl = useRef<HTMLInputElement>(null);
-  const [_file, set_file] = useState("");
+	const { setPoints } = useContext(TempContext);
+	const formRef = useRef<HTMLFormElement>(null);
+	const [file, setFile] = useState('');
 
-  useEffect(() => {
-    console.log({ inputEl });
-  }, [inputEl]);
+	const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (!e.target.files) {
+			return;
+		}
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) {
-      return;
-    }
+		// handle the input...
+		console.log('file', e.target.files);
+		console.log('file', e.target.files[0]);
+		const fileReader = new FileReader();
+		fileReader.readAsText(e.target.files[0], 'UTF-8');
+		fileReader.onload = (e) => {
+			console.log('e.target.result', e.target);
+			const target = e.target;
+			const result = target?.result as string;
+			console.log({ result });
+			setFile(result);
+		};
+	};
 
-    // handle the input...
-    console.log("file", e.target.files);
-    console.log("file", e.target.files[0]);
-    const fileReader = new FileReader();
-    fileReader.readAsText(e.target.files[0], "UTF-8");
-    fileReader.onload = (e) => {
-      console.log("e.target.result", e.target);
-      const target = e.target;
-      const result = target?.result;
-      console.log(typeof result);
-      localStorage.setItem("data", JSON.stringify(result));
-      // console.log(e.target.result);
-      // set_file(e.target?.result);
-    };
+	const handleSendUpload = (e: SyntheticEvent) => {
+		e.preventDefault();
 
-    // const formData = new FormData();
-    // formData.append("file", e.target.files[0]);
-    // console.log("formData", formData);
-    // const res = await fetch("http://localhost:8000/upload-file", {
-    //   method: "POST",
-    //   body: formData,
-    // }).then((res) => res.json());
-    // alert(JSON.stringify(`${res.message}, status: ${res.status}`));
-  };
-  const handleSendUpload = async () => {
-    console.log("click");
+		const data = new FormData();
+		data.append('file', file);
+		updateFile(data);
+	};
 
-    if (inputEl && inputEl.current) {
-      console.log(inputEl);
-      console.log(inputEl.current);
-      inputEl.current.focus();
-      console.log(inputEl.current.focus());
-    }
+	const resetForm = () => {
+		formRef.current?.reset();
+		setFile('');
+	};
 
-    //send upload
+	const loadPoints = (e: SyntheticEvent) => {
+		e.preventDefault();
+		makeRequest({ url: '/points' })
+			.then(async(res) => setPoints(await res.json() as any as MapPoint[]))
+			.catch((err) => console.trace(err));
+	};
 
-    var data = new FormData();
-    // data.append("file", input.files[0]);
-    data.append("file", _file);
+	return (
+		<div className='meau'>
+			<form  ref={formRef} onSubmit={handleSendUpload}>
+				<div className='logo'>
+					<img src={logo} alt='Logo Images' />
+					<h1>Tem Map</h1>
+				</div>
 
-    // fetch("/upload-file", {
-    //   method: "POST",
-    //   body: data,
-    // });
-  };
-  return (
-    <div className="meau">
-      <div className="logo">
-        <img src={logo} alt="Logo Images" />
-        <h1>Tem Map</h1>
-      </div>
-      <input
-        ref={inputEl}
-        type="file"
-        onChange={handleChange}
-        // style={{ display: "none" }}
-      />
-      <input
-        type="file"
-        onChange={handleChange}
-        // style={{ display: "none" }}
-      />
-      <button className="list" onClick={handleSendUpload}>
-        <ImFolderUpload />
-        <h1>Upload File</h1>
-      </button>
+				<input
+					type='file'
+					onChange={handleFileInputChange}
+					// style={{ display: "none" }}
+				/>
 
-      <button className="list">
-        <FaTemperatureHigh />
-        <h1>Change C/F</h1>
-      </button>
-    </div>
-  );
+				<button onClick={resetForm} className='list' disabled={!file.length}>
+					<ImCancelCircle />
+					<h1>Clear</h1>
+				</button>
+
+				<button className='list' type='submit' disabled={!file.length}>
+					<ImFolderUpload />
+					<h1>Upload File</h1>
+				</button>
+			</form>
+			<button className='list' onClick={loadPoints}>
+				<FaMapMarkerAlt />
+				<h1>Load points</h1>
+			</button>
+
+			<button className='list'>
+				<FaTemperatureHigh />
+				<h1>Change C/F</h1>
+			</button>
+		</div>
+	);
 };
